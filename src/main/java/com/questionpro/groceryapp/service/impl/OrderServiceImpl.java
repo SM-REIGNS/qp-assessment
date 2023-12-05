@@ -3,6 +3,7 @@ package com.questionpro.groceryapp.service.impl;
 import com.questionpro.groceryapp.entity.GroceryItem;
 import com.questionpro.groceryapp.entity.Order;
 import com.questionpro.groceryapp.entity.OrderItem;
+import com.questionpro.groceryapp.exception.JPAException;
 import com.questionpro.groceryapp.exception.ResourceNotFoundException;
 import com.questionpro.groceryapp.model.Item;
 import com.questionpro.groceryapp.model.OrderCreationRequest;
@@ -33,7 +34,11 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setUserId(request.getUserId());
         order.setTotalAmount(request.getTotalAmount());
-        order = orderRepository.save(order);
+        try {
+            order = orderRepository.save(order);
+        } catch (Exception e) {
+            throw new JPAException("Exception while trying to place a new order : "+ e);
+        }
         List<OrderItem> orderItems = new ArrayList<>();
         List<GroceryItem> groceryItems = new ArrayList<>();
         for (Item item: request.getItems())
@@ -47,14 +52,22 @@ public class OrderServiceImpl implements OrderService {
             orderItems.add(orderItem);
             groceryItems.add(groceryItem);
         }
-        groceryItemRepository.saveAll(groceryItems);
-        orderItemRepository.saveAll(orderItems);
-        orderRepository.save(order);
+        try {
+            groceryItemRepository.saveAll(groceryItems);
+            orderItemRepository.saveAll(orderItems);
+            orderRepository.save(order);
+        } catch (Exception e) {
+            throw new JPAException("Exception while trying to save to DB: "+ e);
+        }
     }
 
     @Override
     public List<Order> getAllOrdersForUser(Integer userId) {
         List<Order> orders = orderRepository.findByUserId(userId);
+        if (orders.isEmpty())
+        {
+            throw new ResourceNotFoundException("No orders found");
+        }
         return orders;
     }
 }
